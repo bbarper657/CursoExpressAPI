@@ -23,30 +23,22 @@ public class Course {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotEmpty(message = "{msg.tuition.code.notEmpty}")
-    @Size(max = 2, message = "{msg.tuition.code.size}")
     @Column(name = "code", nullable = false, length = 2)
     private String code;
 
-    @NotEmpty(message = "{msg.course.name.notEmpty}")
-    @Size(max = 100, message = "{msg.course.name.size}")
     @Column(name = "name", nullable = false)
     private String name;
 
-    @NotEmpty(message = "{msg.course.description.notEmpty}")
-    @Size(max = 500, message = "{msg.course.description.size}")
     @Column(name = "description", nullable = false)
     private String description;
 
-    @NotNull(message = "{msg.course.startDate.notNull}")
     @DateTimeFormat(pattern = "dd-MM-yyyy")
     private LocalDate startDate;
 
-    @NotNull(message = "{msg.course.endDate.notNull}")
     @DateTimeFormat(pattern = "dd-MM-yyyy")
     private LocalDate endDate;
 
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<ModuleCourse> modulesCourses;

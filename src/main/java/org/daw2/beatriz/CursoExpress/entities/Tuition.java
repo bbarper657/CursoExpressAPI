@@ -1,5 +1,7 @@
 package org.daw2.beatriz.CursoExpress.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,17 +24,12 @@ public class Tuition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotEmpty(message = "{msg.tuition.code.notEmpty}")
-    @Size(max = 2, message = "{msg.tuition.code.size}")
     @Column(name = "code", nullable = false, length = 2)
     private String code;
 
-    @NotNull(message = "{msg.course.endDate.notNull}")
     @DateTimeFormat(pattern = "dd-MM-yyyy")
     private LocalDate date;
 
-    @NotEmpty(message = "{msg.tuition.observation.notEmpty}")
-    @Size(max = 500, message = "{msg.tuition.observation.size}")
     @Column(name = "observation", nullable = false)
     private String observation;
 
@@ -40,12 +37,14 @@ public class Tuition {
     @JoinColumn(name = "student_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @JsonBackReference
     private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
+    @JsonBackReference
     private Course course;
 
     public Tuition(String code, LocalDate date, String observation, Student student, Course course) {

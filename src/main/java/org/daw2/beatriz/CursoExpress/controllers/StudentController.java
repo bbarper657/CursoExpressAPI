@@ -1,102 +1,101 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
 import jakarta.validation.Valid;
-import org.daw2.beatriz.CursoExpress.entities.Student;
-import org.daw2.beatriz.CursoExpress.repositories.StudentRepository;
+import org.daw2.beatriz.CursoExpress.dtos.StudentCreateDTO;
+import org.daw2.beatriz.CursoExpress.dtos.StudentDTO;
+import org.daw2.beatriz.CursoExpress.services.StudentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/students")
+@RequestMapping("/api/students")
 public class StudentController {
     private static final Logger logger = LoggerFactory.getLogger(StudentController.class);
 
     @Autowired
-    private StudentRepository studentRepository;
-
-    @Autowired
-    private MessageSource messageSource;
+    private StudentService studentService;
 
     @GetMapping
-    public ResponseEntity<List<Student>> getAllStudents() {
+    public ResponseEntity<List<StudentDTO>> getAllStudents() {
         logger.info("Solicitando la lista de todos los Alumnos...");
         try {
-            List<Student> students = studentRepository.findAll();
-            logger.info("Se han encontrado {} alumnos.", students.size());
-            return ResponseEntity.ok(students);
+            List<StudentDTO> studentDTOs = studentService.getAllStudents();
+            logger.info("Se han encontrado {} Alumnos.", studentDTOs.size());
+            return ResponseEntity.ok(studentDTOs);
         } catch (Exception e) {
-            logger.error("Error al listar los alumnos: {}", e.getMessage());
+            logger.error("Error al listar los Alumnos: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Student> getStudentById(@PathVariable Long id) {
-        logger.info("Insertando nuevo alumno con id {}", student.getId());
-        if (result.hasErrors()) {
-            return "student-form";
+    public ResponseEntity<?> getStudentById(@PathVariable Long id) {
+        logger.info("Insertando nuevo Alumno con id {}", id);
+        try {
+            Optional<StudentDTO> studentDTO = studentService.getStudentById(id);
+            if (studentDTO.isPresent()) {
+                logger.info("Alumno con ID {} encontrado", id);
+                return ResponseEntity.ok(studentDTO.get());
+            } else {
+                logger.warn("No se encontró ningún Alumno con ID {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El Alumno no existe.");
+            }
+        } catch (Exception e) {
+            logger.error("Error al obtener al Alumno con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al buscar el Alumno");
         }
-        studentRepository.save(student);
-        logger.info("Alumnos {} insertados con éxito.", student.getId());
-        return "redirect:/students";
     }
 
     @PostMapping
-    public ResponseEntity<?> createStudent(@Valid @RequestBody Student student, Locale locale) {
-        logger.info("Actualizando Alumno con ID {}", student.getId());
-        if (result.hasErrors()) {
-            return "student-form";
-        }
+    public ResponseEntity<?> createStudent(@Valid @RequestBody StudentCreateDTO studentCreateDTO, Locale locale) {
+        logger.info("Insertando nuevo Alumno con nombre {}", studentCreateDTO.getName());
         try {
-            studentRepository.save(student);
-            redirectAttributes.addFlashAttribute("successMessage", "Alumno actualizado con éxito");
+            StudentDTO createdStudent = studentService.createStudent(studentCreateDTO, locale);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdStudent);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al crear el Alumno: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo actualizar el alumno");
+            logger.error("Error inesperado al crear el Alumno: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al crear el Alumno.");
         }
-        return "redirect:/students";
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateStudent(@PathVariable Long id, @Valid @RequestBody Student student, Locale locale) {
-        logger.info("Eliminando Alumno con ID {}", id);
+    public ResponseEntity<?> updateStudent(@PathVariable Long id, @Valid @RequestBody StudentCreateDTO studentCreateDTO, Locale locale) {
+        logger.info("Actualizando Alumno con ID {}", id);
         try {
-            studentRepository.deleteById(id);
-            logger.info("Alumno con ID {} eliminado con éxito.", id);
-            redirectAttributes.addFlashAttribute("successMessage", "Alumno eliminado con éxito");
+            StudentDTO updatedStudent = studentService.updateStudent(id, studentCreateDTO, locale);
+            return ResponseEntity.ok(updatedStudent);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al actualizar el Alumno: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            logger.error("No se pudo eliminar el Alumno con ID {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo eliminar el alumno");
+            logger.error("No se pudo actualizar el Alumno con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al actualizar el Alumno.");
         }
-        return "redirect:/students";
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> updateStudent(@PathVariable Long id) {
+    public ResponseEntity<?> deleteStudent(@PathVariable Long id) {
         logger.info("Eliminando Alumno con ID {}", id);
         try {
-            studentRepository.deleteById(id);
-            logger.info("Alumno con ID {} eliminado con éxito.", id);
-            redirectAttributes.addFlashAttribute("successMessage", "Alumno eliminado con éxito");
+            studentService.deleteStudent(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al eliminar el Alumno: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            logger.error("No se pudo eliminar el Alumno con ID {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo eliminar el alumno");
+            logger.error("Error al eliminar el Alumno con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar el Alumno.");
         }
-        return "redirect:/students";
     }
 }

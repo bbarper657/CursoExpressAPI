@@ -1,131 +1,102 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
 import jakarta.validation.Valid;
-import org.iesalixar.daw2.beatriz.CursoExpress.entities.Teacher;
-import org.iesalixar.daw2.beatriz.CursoExpress.repositories.TeacherRepository;
+import org.daw2.beatriz.CursoExpress.dtos.TeacherCreateDTO;
+import org.daw2.beatriz.CursoExpress.dtos.TeacherDTO;
+import org.daw2.beatriz.CursoExpress.services.TeacherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 @Controller
-@RequestMapping("/teachers")
+@RequestMapping("/api/teachers")
 public class TeacherController {
     private static final Logger logger = LoggerFactory.getLogger(TeacherController.class);
 
     @Autowired
-    private TeacherRepository teacherRepository;
-
-    @Autowired
-    private MessageSource messageSource;
+    private TeacherService teacherService;
 
     @GetMapping
-    public String listTeachers(@RequestParam(defaultValue = "1") int page,
-                              @RequestParam(required = false) String search,
-                              @RequestParam(required = false) String sort,
-                              Model model) {
-        logger.info("Solicitando la lista de todos los Profesores..." + search);
-        Pageable pageable = PageRequest.of(page - 1, 5, getSort(sort));
-        Page<Teacher> teachers;
-        int totalPages = 0;
-        if (search != null && !search.isBlank()) {
-            teachers = teacherRepository.findByNameContainingIgnoreCase(search, pageable);
-            totalPages = (int) Math.ceil((double) teacherRepository.countByNameContainingIgnoreCase(search) / 5);
-        } else {
-            teachers = teacherRepository.findAll(pageable);
-            totalPages = (int) Math.ceil((double) teacherRepository.count() / 5);
-        }
-        logger.info("Se han cargado {} Profesores.", teachers.toList().size());
-        model.addAttribute("listTeachers", teachers.toList());
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("search", search);
-        model.addAttribute("sort", sort);
-        return "teacher";
-    }
-
-    @GetMapping("/new")
-    public String showNewForm(Model model) {
-        logger.info("Mostrando formulario para nuevo Profesor...");
-        model.addAttribute("teacher", new Teacher());
-        return "teacher-form";
-    }
-
-    @GetMapping("/edit")
-    public String showEditForm(@RequestParam("id") Long id, Model model) {
-        logger.info("Mostrando formulario de edición para el Profesor con ID {}", id);
-        Optional<Teacher> teacherOpt = teacherRepository.findById(id);
-        if (!teacherOpt.isPresent()) {
-            logger.warn("No se encontró el profesor con ID {}", id);
-        }
-        model.addAttribute("teacher", teacherOpt.get());
-        return "teacher-form";
-    }
-
-    @PostMapping("/insert")
-    public String insertTeacher(@Valid @ModelAttribute("teacher") Teacher teacher, BindingResult result, RedirectAttributes redirectAttributes, Locale locale) {
-        logger.info("Insertando nuevo profesor con id {}", teacher.getId());
-        if (result.hasErrors()) {
-            return "teacher-form";
-        }
-
-        teacherRepository.save(teacher);
-        logger.info("Proferores {} insertados con éxito.", teacher.getId());
-        return "redirect:/teachers";
-    }
-
-    @PostMapping("/update")
-    public String updateTeacher(@Valid @ModelAttribute("teacher") Teacher teacher, BindingResult result, RedirectAttributes redirectAttributes, Locale locale) {
-        logger.info("Actualizando profesor con ID {}", teacher.getId());
-        if (result.hasErrors()) {
-            return "teacher-form";
-        }
+    public ResponseEntity<List<TeacherDTO>> getAllTeachers() {
+        logger.info("Solicitando la lista de todos los Profesores...");
         try {
-            teacherRepository.save(teacher);
-            redirectAttributes.addFlashAttribute("successMessage", "Profesor actualizado con éxito");
+            List<TeacherDTO> teacherDTOs = teacherService.getAllTeachers();
+            logger.info("Se han encontrado {} Profesores.", teacherDTOs.size());
+            return ResponseEntity.ok(teacherDTOs);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo actualizar el profesor");
+            logger.error("Error al listar los Profesores: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-        return "redirect:/teachers";
     }
 
-    @PostMapping("/delete")
-    public String deleteTeacher(@RequestParam("id") Long id, RedirectAttributes redirectAttributes, Locale locale) {
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getTeacherById(@PathVariable Long id) {
+        logger.info("Insertando nuevo Profesor con id {}", id);
+        try {
+            Optional<TeacherDTO> teacherDTO = teacherService.getTeacherById(id);
+            if (teacherDTO.isPresent()) {
+                logger.info("Profesor con ID {} encontrado", id);
+                return ResponseEntity.ok(teacherDTO.get());
+            } else {
+                logger.warn("No se encontró ningún Profesor con ID {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El Profesor no existe.");
+            }
+        } catch (Exception e) {
+            logger.error("Error al obtener al Profesor con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al buscar el Profesor");
+        }
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createTeacher(@Valid @RequestBody TeacherCreateDTO teacherCreateDTO, Locale locale) {
+        logger.info("Insertando nuevo Profesor con nombre {}", teacherCreateDTO.getName());
+        try {
+            TeacherDTO createdTeacher = teacherService.createTeacher(teacherCreateDTO, locale);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdTeacher);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al crear el Profesor: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error inesperado al crear el Profesor: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al crear el Profesor.");
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateTeacher(@PathVariable Long id, @Valid @RequestBody TeacherCreateDTO teacherCreateDTO, Locale locale) {
+        logger.info("Actualizando Profesor con ID {}", id);
+        try {
+            TeacherDTO updatedTeacher = teacherService.updateTeacher(id, teacherCreateDTO, locale);
+            return ResponseEntity.ok(updatedTeacher);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al actualizar el Profesor: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("No se pudo actualizar el Profesor con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al actualizar el Profesor.");
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteTeacher(@PathVariable Long id) {
         logger.info("Eliminando Profesor con ID {}", id);
         try {
-            teacherRepository.deleteById(id);
-            logger.info("Profesor con ID {} eliminado con éxito.", id);
-            redirectAttributes.addFlashAttribute("successMessage", "Profesor eliminado con éxito");
+            teacherService.deleteTeacher(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al eliminar el Profesor: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            logger.error("No se pudo eliminar el Profesor con ID {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo eliminar el profesor");
+            logger.error("Error al eliminar el Profesor con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar el Profesor.");
         }
-        return "redirect:/teachers";
-    }
-
-    private Sort getSort(String sort) {
-        if (sort == null) {
-            return Sort.by("id").ascending();
-        }
-        return switch (sort) {
-            case "nameAsc" -> Sort.by("name").ascending();
-            case "nameDesc" -> Sort.by("name").descending();
-            case "codeAsc" -> Sort.by("code").ascending();
-            case "codeDesc" -> Sort.by("code").descending();
-            case "idDesc" -> Sort.by("id").descending();
-            default -> Sort.by("id").ascending();
-        };
     }
 }

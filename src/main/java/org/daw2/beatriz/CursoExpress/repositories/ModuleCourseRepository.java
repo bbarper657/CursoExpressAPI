@@ -1,6 +1,8 @@
 package org.daw2.beatriz.CursoExpress.repositories;
 
-import org.iesalixar.daw2.beatriz.CursoExpress.entities.ModuleCourse;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+import org.daw2.beatriz.CursoExpress.entities.ModuleCourse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +16,6 @@ public interface ModuleCourseRepository extends JpaRepository<ModuleCourse, Long
     long countByNameContainingIgnoreCase(String name);
 
     boolean existsModuleCourseByCode(String code);
+
+    boolean existsByCodeAndIdNot(@NotEmpty(message = "{msg.tuition.code.notEmpty}") @Size(max = 2, message = "{msg.tuition.code.size}") String code, Long id);
 }

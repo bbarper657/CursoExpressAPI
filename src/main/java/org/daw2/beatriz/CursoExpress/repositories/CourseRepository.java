@@ -1,6 +1,8 @@
 package org.daw2.beatriz.CursoExpress.repositories;
 
-import org.iesalixar.daw2.beatriz.CursoExpress.entities.Course;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+import org.daw2.beatriz.CursoExpress.entities.Course;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,4 +16,6 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     long countByNameContainingIgnoreCase(String name);
 
     boolean existsCourseByCode(String code);
+
+    boolean existsByCodeAndIdNot(@NotEmpty(message = "{msg.tuition.code.notEmpty}") @Size(max = 2, message = "{msg.tuition.code.size}") String code, Long id);
 }

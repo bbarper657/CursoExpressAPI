@@ -1,137 +1,102 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
 import jakarta.validation.Valid;
-import org.iesalixar.daw2.beatriz.CursoExpress.entities.Course;
-import org.iesalixar.daw2.beatriz.CursoExpress.repositories.CourseRepository;
+import org.daw2.beatriz.CursoExpress.dtos.CourseCreateDTO;
+import org.daw2.beatriz.CursoExpress.dtos.CourseDTO;
+import org.daw2.beatriz.CursoExpress.services.CourseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.MessageSource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 @Controller
-@RequestMapping("/courses")
+@RequestMapping("/api/courses")
 public class CourseController {
     private static final Logger logger = LoggerFactory.getLogger(CourseController.class);
 
     @Autowired
-    private CourseRepository courseRepository;
-
-    @Autowired
-    private MessageSource messageSource;
+    private CourseService courseService;
 
     @GetMapping
-    public String listCourses(@RequestParam(defaultValue = "1") int page,
-                                     @RequestParam(required = false) String search,
-                                     @RequestParam(required = false) String sort,
-                                     Model model) {
-        logger.info("Solicitando la lista de todos los Cursos..." + search);
-        Pageable pageable = PageRequest.of(page - 1, 5, getSort(sort));
-        Page<Course> courses;
-        int totalPages = 0;
-        if (search != null && !search.isBlank()) {
-            courses = courseRepository.findByNameContainingIgnoreCase(search, pageable);
-            totalPages = (int) Math.ceil((double) courseRepository.countByNameContainingIgnoreCase(search) / 5);
-        } else {
-            courses = courseRepository.findAll(pageable);
-            totalPages = (int) Math.ceil((double) courseRepository.count() / 5);
-        }
-        logger.info("Se han cargado {} Cursos.", courses.toList().size());
-        model.addAttribute("listCourses", courses.toList());
-        model.addAttribute("totalPages", totalPages);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("search", search);
-        model.addAttribute("sort", sort);
-        return "course";
-    }
-
-    @GetMapping("/new")
-    public String showNewForm(Model model) {
-        logger.info("Mostrando formulario para nuevo Curso...");
-        model.addAttribute("course", new Course());
-        return "course-form";
-    }
-
-    @GetMapping("/edit")
-    public String showEditForm(@RequestParam("id") Long id, Model model) {
-        logger.info("Mostrando formulario de edición para el Curso con ID {}", id);
-        Optional<Course> courseOpt = courseRepository.findById(id);
-        if (!courseOpt.isPresent()) {
-            logger.warn("No se encontró el curso con ID {}", id);
-        }
-        model.addAttribute("course", courseOpt.get());
-        return "course-form";
-    }
-
-    @PostMapping("/insert")
-    public String insertCourse(@Valid @ModelAttribute("course") Course course, BindingResult result, RedirectAttributes redirectAttributes, Locale locale) {
-        logger.info("Insertando nuevo curso con código {}", course.getCode());
-        if (result.hasErrors()) {
-            return "course-form";
-        }
-        if (courseRepository.existsCourseByCode(course.getCode())) {
-            logger.warn("El código del curso {} ya existe.", course.getCode());
-            String errorMessage = messageSource.getMessage("El código del Curso ya existe", null, locale);
-            redirectAttributes.addFlashAttribute("errorMessage", errorMessage);
-            return "redirect:/courses/new";
-        }
-
-        courseRepository.save(course);
-        logger.info("Cursos {} insertados con éxito.", course.getCode());
-        return "redirect:/courses";
-    }
-
-    @PostMapping("/update")
-    public String updateCourse(@Valid @ModelAttribute("course") Course course, BindingResult result, RedirectAttributes redirectAttributes, Locale locale) {
-        logger.info("Actualizando Curso con ID {}", course.getId());
-        if (result.hasErrors()) {
-            return "course-form";
-        }
+    public ResponseEntity<List<CourseDTO>> getAllCourses() {
+        logger.info("Solicitando la lista de todos los Cursos...");
         try {
-            courseRepository.save(course);
-            redirectAttributes.addFlashAttribute("successMessage", "Curso actualizado con éxito");
+            List<CourseDTO> courseDTOs = courseService.getAllCourses();
+            logger.info("Se han encontrado {} Cursos.", courseDTOs.size());
+            return ResponseEntity.ok(courseDTOs);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo actualizar el curso");
+            logger.error("Error al listar los Cursos: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-        return "redirect:/courses";
     }
 
-    @PostMapping("/delete")
-    public String deleteCourse(@RequestParam("id") Long id, RedirectAttributes redirectAttributes, Locale locale) {
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getCourseById(@PathVariable Long id) {
+        logger.info("Insertando nuevo Curso con id {}", id);
+        try {
+            Optional<CourseDTO> courseDTO = courseService.getCourseById(id);
+            if (courseDTO.isPresent()) {
+                logger.info("Curso con ID {} encontrado", id);
+                return ResponseEntity.ok(courseDTO.get());
+            } else {
+                logger.warn("No se encontró ningún Curso con ID {}", id);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("El Curso no existe.");
+            }
+        } catch (Exception e) {
+            logger.error("Error al obtener al Curso con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al buscar el Curso");
+        }
+    }
+
+    @PostMapping
+    public ResponseEntity<?> createCourse(@Valid @RequestBody CourseCreateDTO courseCreateDTO, Locale locale) {
+        logger.info("Insertando nuevo Curso con nombre {}", courseCreateDTO.getName());
+        try {
+            CourseDTO createdCourse = courseService.createCourse(courseCreateDTO, locale);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdCourse);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al crear el Curso: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("Error inesperado al crear el Curso: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al crear el Curso.");
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateCourse(@PathVariable Long id, @Valid @RequestBody CourseCreateDTO courseCreateDTO, Locale locale) {
+        logger.info("Actualizando Curso con ID {}", id);
+        try {
+            CourseDTO updatedCourse = courseService.updateCourse(id, courseCreateDTO, locale);
+            return ResponseEntity.ok(updatedCourse);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al actualizar el Curso: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            logger.error("No se pudo actualizar el Curso con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al actualizar el Curso.");
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteCourse(@PathVariable Long id) {
         logger.info("Eliminando Curso con ID {}", id);
         try {
-            courseRepository.deleteById(id);
-            logger.info("Curso con ID {} eliminado con éxito.", id);
-            redirectAttributes.addFlashAttribute("successMessage", "Curso eliminado con éxito");
+            courseService.deleteCourse(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            logger.warn("Error al eliminar el Curso: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            logger.error("No se pudo eliminar el Curso con ID {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo eliminar el curso");
+            logger.error("Error al eliminar el Curso con ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar el Curso.");
         }
-        return "redirect:/courses";
-    }
-
-    private Sort getSort(String sort) {
-        if (sort == null) {
-            return Sort.by("id").ascending();
-        }
-        return switch (sort) {
-            case "nameAsc" -> Sort.by("name").ascending();
-            case "nameDesc" -> Sort.by("name").descending();
-            case "codeAsc" -> Sort.by("code").ascending();
-            case "codeDesc" -> Sort.by("code").descending();
-            case "idDesc" -> Sort.by("id").descending();
-            default -> Sort.by("id").ascending();
-        };
     }
 }

@@ -19,19 +19,12 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotEmpty(message = "{msg.student.name.notEmpty}")
-    @Size(max = 100, message = "{msg.student.name.size}")
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @NotEmpty(message = "{msg.student.name.notEmpty}")
-    @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$", message = "{msg.student.email.notValid}")
-    @Size(max = 100)
     @Column(name = "email", nullable = false, length = 100)
     private String email;
 
-    @NotEmpty(message = "{msg.student.phone.notEmpty}")
-    @Size(max = 25, message = "{msg.student.phone.size}")
     @Column(name = "phone", nullable = false, length = 25)
     private String phone;
 
