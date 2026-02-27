@@ -17,5 +17,5 @@ public interface ModuleCourseRepository extends JpaRepository<ModuleCourse, Long
 
     boolean existsModuleCourseByCode(String code);
 
-    boolean existsByCodeAndIdNot(@NotEmpty(message = "{msg.tuition.code.notEmpty}") @Size(max = 2, message = "{msg.tuition.code.size}") String code, Long id);
+    boolean existsByCodeAndIdNot(@NotEmpty(message = "{msg.module.code.notEmpty}") @Size(max = 2, message = "{msg.module.code.size}") String code, Long id);
 }

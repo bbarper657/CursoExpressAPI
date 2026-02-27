@@ -1,6 +1,5 @@
 package org.daw2.beatriz.CursoExpress.dtos;
 
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

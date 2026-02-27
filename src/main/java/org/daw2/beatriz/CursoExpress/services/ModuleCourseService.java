@@ -12,9 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -34,14 +35,12 @@ public class ModuleCourseService {
     @Autowired
     private MessageSource messageSource;
 
-    public List<ModuleCourseDTO> getAllModulesCourses() {
+    public Page<ModuleCourseDTO> getAllModulesCourses(Pageable pageable) {
+        logger.info("Solicitando todos los Módulos con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            logger.info("Obteniendo todos los módulos de los cursos...");
-            List<ModuleCourse> moduleCourses = moduleCourseRepository.findAll();
-            logger.info("Se encontraron {} módulos de los cursos", moduleCourses.size());
-            return moduleCourses.stream()
-                    .map(moduleCourseMapper::toDTO)
-                    .toList();
+            Page<ModuleCourse> moduleCourses = moduleCourseRepository.findAll(pageable);
+            logger.info("Se encontraron {} Módulos en la página actual.", moduleCourses.getNumberOfElements());
+            return moduleCourses.map(moduleCourseMapper::toDTO);
         } catch (Exception e) {
             logger.error("Error al obtener todos los módulos de los cursos: {}", e.getMessage());
             throw new RuntimeException("Error al obtener todos los módulos de los cursos", e);
@@ -60,16 +59,16 @@ public class ModuleCourseService {
 
     public ModuleCourseDTO createModuleCourse(ModuleCourseCreateDTO moduleCourseCreateDTO, Locale locale) {
         if (moduleCourseRepository.existsModuleCourseByCode(moduleCourseCreateDTO.getCode())) {
-            String errorMessage = messageSource.getMessage("Error al crear el módulo del curso.", null, locale);
+            String errorMessage = messageSource.getMessage("msg.module.code.exists", null, locale);
             throw new IllegalArgumentException(errorMessage);
         }
 
-        if (moduleCourseRepository.existsModuleCourseByCode(moduleCourseCreateDTO.getCode())) {
-            throw new IllegalArgumentException("El código de ese módulo existe");
-        }
+        Course course = courseRepository.findById(moduleCourseCreateDTO.getCourseId())
+                .orElseThrow(() -> new IllegalArgumentException("Curso no encontrado."));
 
         // Se convierte a Entity para almacenar en la base de datos
         ModuleCourse moduleCourse = moduleCourseMapper.toEntity(moduleCourseCreateDTO);
+        moduleCourse.setCourse(course);
         ModuleCourse savedModuleCourse = moduleCourseRepository.save(moduleCourse);
         // Se devuelve el DTO
         return moduleCourseMapper.toDTO(savedModuleCourse);

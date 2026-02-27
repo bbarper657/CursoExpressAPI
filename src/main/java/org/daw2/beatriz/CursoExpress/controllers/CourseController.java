@@ -1,5 +1,11 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.daw2.beatriz.CursoExpress.dtos.CourseCreateDTO;
 import org.daw2.beatriz.CursoExpress.dtos.CourseDTO;
@@ -7,12 +13,14 @@ import org.daw2.beatriz.CursoExpress.services.CourseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -24,12 +32,20 @@ public class CourseController {
     @Autowired
     private CourseService courseService;
 
+    @Operation(summary = "Obtener todos los Cursos", description = "Devuelve una lista de todos los Cursos " +
+            "disponibles en el sistema.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de Cursos recuperada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = CourseDTO.class)))),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping
-    public ResponseEntity<List<CourseDTO>> getAllCourses() {
-        logger.info("Solicitando la lista de todos los Cursos...");
+    public ResponseEntity<Page<CourseDTO>> getAllCourses(@PageableDefault(size = 5, sort = "name") Pageable pageable) {
+        logger.info("Solicitando la lista de todos los Cursos con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            List<CourseDTO> courseDTOs = courseService.getAllCourses();
-            logger.info("Se han encontrado {} Cursos.", courseDTOs.size());
+            Page<CourseDTO> courseDTOs = courseService.getAllCourses(pageable);
+            logger.info("Se han encontrado {} Cursos.", courseDTOs.getTotalElements());
             return ResponseEntity.ok(courseDTOs);
         } catch (Exception e) {
             logger.error("Error al listar los Cursos: {}", e.getMessage());
@@ -37,6 +53,15 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Obtener un Curso por ID", description = "Recupera un Curso " +
+            "específico según su identificador único.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Curso encontrado",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = CourseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Curso no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<?> getCourseById(@PathVariable Long id) {
         logger.info("Insertando nuevo Curso con id {}", id);
@@ -55,8 +80,16 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Crear un nuevo Curso", description = "Permite registrar un nuevo Curso en la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Curso creado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = CourseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos proporcionados"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping
-    public ResponseEntity<?> createCourse(@Valid @RequestBody CourseCreateDTO courseCreateDTO, Locale locale) {
+    public ResponseEntity<?> createCourse(@Valid @ModelAttribute CourseCreateDTO courseCreateDTO, Locale locale) {
         logger.info("Insertando nuevo Curso con nombre {}", courseCreateDTO.getName());
         try {
             CourseDTO createdCourse = courseService.createCourse(courseCreateDTO, locale);
@@ -70,8 +103,16 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Actualizar un Curso", description = "Permite actualizar los datos de un Curso existente.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Curso actualizado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = CourseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCourse(@PathVariable Long id, @Valid @RequestBody CourseCreateDTO courseCreateDTO, Locale locale) {
+    public ResponseEntity<?> updateCourse(@PathVariable Long id, @Valid @ModelAttribute CourseCreateDTO courseCreateDTO, Locale locale) {
         logger.info("Actualizando Curso con ID {}", id);
         try {
             CourseDTO updatedCourse = courseService.updateCourse(id, courseCreateDTO, locale);
@@ -85,6 +126,12 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Eliminar un Curso", description = "Permite eliminar un Curso específica de la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Curso eliminado exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Curso no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCourse(@PathVariable Long id) {
         logger.info("Eliminando Curso con ID {}", id);

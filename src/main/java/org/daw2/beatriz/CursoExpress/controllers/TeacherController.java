@@ -1,5 +1,11 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.daw2.beatriz.CursoExpress.dtos.TeacherCreateDTO;
 import org.daw2.beatriz.CursoExpress.dtos.TeacherDTO;
@@ -7,12 +13,14 @@ import org.daw2.beatriz.CursoExpress.services.TeacherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -24,12 +32,20 @@ public class TeacherController {
     @Autowired
     private TeacherService teacherService;
 
+    @Operation(summary = "Obtener todos los Profesores", description = "Devuelve una lista de todos los Profesores " +
+            "disponibles en el sistema.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de Profesores recuperada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = TeacherDTO.class)))),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping
-    public ResponseEntity<List<TeacherDTO>> getAllTeachers() {
-        logger.info("Solicitando la lista de todos los Profesores...");
+    public ResponseEntity<Page<TeacherDTO>> getAllTeachers(@PageableDefault(size = 5, sort = "name") Pageable pageable) {
+        logger.info("Solicitando la lista de todos los Profesores con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            List<TeacherDTO> teacherDTOs = teacherService.getAllTeachers();
-            logger.info("Se han encontrado {} Profesores.", teacherDTOs.size());
+            Page<TeacherDTO> teacherDTOs = teacherService.getAllTeachers(pageable);
+            logger.info("Se han encontrado {} Profesores.", teacherDTOs.getTotalElements());
             return ResponseEntity.ok(teacherDTOs);
         } catch (Exception e) {
             logger.error("Error al listar los Profesores: {}", e.getMessage());
@@ -37,6 +53,15 @@ public class TeacherController {
         }
     }
 
+    @Operation(summary = "Obtener un Profesor por ID", description = "Recupera un Profesor " +
+            "específico según su identificador único.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profesor encontrada",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TeacherDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Profesor no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<?> getTeacherById(@PathVariable Long id) {
         logger.info("Insertando nuevo Profesor con id {}", id);
@@ -55,8 +80,16 @@ public class TeacherController {
         }
     }
 
+    @Operation(summary = "Crear un nuevo Profesor", description = "Permite registrar un nuevo Profesor en la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Profesor creado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TeacherDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos proporcionados"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping
-    public ResponseEntity<?> createTeacher(@Valid @RequestBody TeacherCreateDTO teacherCreateDTO, Locale locale) {
+    public ResponseEntity<?> createTeacher(@Valid @ModelAttribute TeacherCreateDTO teacherCreateDTO, Locale locale) {
         logger.info("Insertando nuevo Profesor con nombre {}", teacherCreateDTO.getName());
         try {
             TeacherDTO createdTeacher = teacherService.createTeacher(teacherCreateDTO, locale);
@@ -70,8 +103,16 @@ public class TeacherController {
         }
     }
 
+    @Operation(summary = "Actualizar un Profesor", description = "Permite actualizar los datos de un Profesor existente.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profesor actualizado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TeacherDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTeacher(@PathVariable Long id, @Valid @RequestBody TeacherCreateDTO teacherCreateDTO, Locale locale) {
+    public ResponseEntity<?> updateTeacher(@PathVariable Long id, @Valid @ModelAttribute TeacherCreateDTO teacherCreateDTO, Locale locale) {
         logger.info("Actualizando Profesor con ID {}", id);
         try {
             TeacherDTO updatedTeacher = teacherService.updateTeacher(id, teacherCreateDTO, locale);
@@ -85,6 +126,12 @@ public class TeacherController {
         }
     }
 
+    @Operation(summary = "Eliminar un Profesor", description = "Permite eliminar un Profesor específica de la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Profesor eliminado exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Profesor no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTeacher(@PathVariable Long id) {
         logger.info("Eliminando Profesor con ID {}", id);

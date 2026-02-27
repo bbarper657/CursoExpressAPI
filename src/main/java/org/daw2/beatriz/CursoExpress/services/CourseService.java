@@ -12,9 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -34,14 +35,12 @@ public class CourseService {
     @Autowired
     private MessageSource messageSource;
 
-    public List<CourseDTO> getAllCourses() {
+    public Page<CourseDTO> getAllCourses(Pageable pageable) {
+        logger.info("Solicitando todos los Cursos con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            logger.info("Obteniendo todos los cursos...");
-            List<Course> courses = courseRepository.findAll();
-            logger.info("Se encontraron {} cursos", courses.size());
-            return courses.stream()
-                    .map(courseMapper::toDTO)
-                    .toList();
+            Page<Course> courses = courseRepository.findAll(pageable);
+            logger.info("Se encontraron {} cursos en la página actual.", courses.getNumberOfElements());
+            return courses.map(courseMapper::toDTO);
         } catch (Exception e) {
             logger.error("Error al obtener todos los cursos: {}", e.getMessage());
             throw new RuntimeException("Error al obtener todos los cursos", e);
@@ -64,12 +63,12 @@ public class CourseService {
             throw new IllegalArgumentException(errorMessage);
         }
 
-        if (courseRepository.existsCourseByCode(courseCreateDTO.getCode())) {
-            throw new IllegalArgumentException("El código de ese curso existe");
-        }
+        Teacher teacher = teacherRepository.findById(courseCreateDTO.getTeacherId())
+                .orElseThrow(() -> new IllegalArgumentException("Profesor no encontrado."));
 
         // Se convierte a Entity para almacenar en la base de datos
         Course course = courseMapper.toEntity(courseCreateDTO);
+        course.setTeacher(teacher);
         Course savedCourse = courseRepository.save(course);
         // Se devuelve el DTO
         return courseMapper.toDTO(savedCourse);

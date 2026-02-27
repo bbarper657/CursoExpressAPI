@@ -1,5 +1,11 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.daw2.beatriz.CursoExpress.dtos.TuitionCreateDTO;
 import org.daw2.beatriz.CursoExpress.dtos.TuitionDTO;
@@ -7,12 +13,14 @@ import org.daw2.beatriz.CursoExpress.services.TuitionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -24,12 +32,20 @@ public class TuitionController {
     @Autowired
     private TuitionService tuitionService;
 
+    @Operation(summary = "Obtener todas las Matrículas", description = "Devuelve una lista de todas las Matrículas " +
+            "disponibles en el sistema.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de Matrículas recuperada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = TuitionDTO.class)))),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping
-    public ResponseEntity<List<TuitionDTO>> getAllTuitions() {
-        logger.info("Solicitando la lista de todos los Matriculas...");
+    public ResponseEntity<Page<TuitionDTO>> getAllTuitions(@PageableDefault(size = 5, sort = "name") Pageable pageable) {
+        logger.info("Solicitando la lista de todos los Matriculas con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            List<TuitionDTO> tuitionDTOs = tuitionService.getAllTuitions();
-            logger.info("Se han encontrado {} Matrículas.", tuitionDTOs.size());
+            Page<TuitionDTO> tuitionDTOs = tuitionService.getAllTuitions(pageable);
+            logger.info("Se han encontrado {} Matrículas.", tuitionDTOs.getTotalElements());
             return ResponseEntity.ok(tuitionDTOs);
         } catch (Exception e) {
             logger.error("Error al listar las Matrículas: {}", e.getMessage());
@@ -37,6 +53,15 @@ public class TuitionController {
         }
     }
 
+    @Operation(summary = "Obtener una Matrícula por ID", description = "Recupera una Matrícula " +
+            "específica según su identificador único.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Matrícula encontrada",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TuitionDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Matrícula no encontrada"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<?> getTuitionById(@PathVariable Long id) {
         logger.info("Insertando nueva Matrícula con id {}", id);
@@ -55,8 +80,16 @@ public class TuitionController {
         }
     }
 
+    @Operation(summary = "Crear una nueva Matrícula", description = "Permite registrar una nueva Matrícula en la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Matrícula creada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TuitionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos proporcionados"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping
-    public ResponseEntity<?> createTuition(@Valid @RequestBody TuitionCreateDTO tuitionCreateDTO, Locale locale) {
+    public ResponseEntity<?> createTuition(@Valid @ModelAttribute TuitionCreateDTO tuitionCreateDTO, Locale locale) {
         logger.info("Insertando nueva Matrícula con código {}", tuitionCreateDTO.getCode());
         try {
             TuitionDTO createdTuition = tuitionService.createTuition(tuitionCreateDTO, locale);
@@ -70,8 +103,16 @@ public class TuitionController {
         }
     }
 
+    @Operation(summary = "Actualizar una Matrícula", description = "Permite actualizar los datos de una Matrícula existente.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Matrícula actualizada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TuitionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTuition(@PathVariable Long id, @Valid @RequestBody TuitionCreateDTO tuitionCreateDTO, Locale locale) {
+    public ResponseEntity<?> updateTuition(@PathVariable Long id, @Valid @ModelAttribute TuitionCreateDTO tuitionCreateDTO, Locale locale) {
         logger.info("Actualizando Matrícula con ID {}", id);
         try {
             TuitionDTO updatedTuition = tuitionService.updateTuition(id, tuitionCreateDTO, locale);
@@ -85,6 +126,12 @@ public class TuitionController {
         }
     }
 
+    @Operation(summary = "Eliminar una Matrícula", description = "Permite eliminar una Matrícula específica de la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Matrícula eliminada exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Matrícula no encontrada"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTuition(@PathVariable Long id) {
         logger.info("Eliminando Matrícula con ID {}", id);

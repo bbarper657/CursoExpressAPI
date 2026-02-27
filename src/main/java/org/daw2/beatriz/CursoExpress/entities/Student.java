@@ -1,9 +1,6 @@
 package org.daw2.beatriz.CursoExpress.entities;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.util.List;
@@ -27,6 +24,9 @@ public class Student {
 
     @Column(name = "phone", nullable = false, length = 25)
     private String phone;
+
+    @Column(name = "image")
+    private String image;
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude

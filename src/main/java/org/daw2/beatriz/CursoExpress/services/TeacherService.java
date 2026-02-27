@@ -10,9 +10,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -29,14 +30,12 @@ public class TeacherService {
     @Autowired
     private MessageSource messageSource;
 
-    public List<TeacherDTO> getAllTeachers() {
+    public Page<TeacherDTO> getAllTeachers(Pageable pageable) {
+        logger.info("Solicitando todos los Profesores con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            logger.info("Obteniendo todos los profesores...");
-            List<Teacher> teachers = teacherRepository.findAll();
-            logger.info("Se encontraron {} profesores", teachers.size());
-            return teachers.stream()
-                    .map(teacherMapper::toDTO)
-                    .toList();
+            Page<Teacher> teachers = teacherRepository.findAll(pageable);
+            logger.info("Se encontraron {} profesores en la página actual.", teachers.getNumberOfElements());
+            return teachers.map(teacherMapper::toDTO);
         } catch (Exception e) {
             logger.error("Error al obtener todos los profesores: {}", e.getMessage());
             throw new RuntimeException("Error al obtener todos los profesores", e);
@@ -57,10 +56,6 @@ public class TeacherService {
         if (teacherRepository.existsByEmail(teacherCreateDTO.getEmail())) {
             String errorMessage = messageSource.getMessage("Error al crear el profesor.", null, locale);
             throw new IllegalArgumentException(errorMessage);
-        }
-
-        if (teacherRepository.existsByEmail(teacherCreateDTO.getEmail())) {
-            throw new IllegalArgumentException("El correo de ese profesor existe");
         }
 
         // Se convierte a Entity para almacenar en la base de datos

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter
@@ -22,4 +23,6 @@ public class StudentCreateDTO {
     @NotEmpty(message = "{msg.student.phone.notEmpty}")
     @Size(max = 25, message = "{msg.student.phone.size}")
     private String phone;
+
+    private MultipartFile image;
 }

@@ -1,21 +1,27 @@
 package org.daw2.beatriz.CursoExpress.controllers;
 
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.daw2.beatriz.CursoExpress.dtos.CourseCreateDTO;
-import org.daw2.beatriz.CursoExpress.dtos.CourseDTO;
 import org.daw2.beatriz.CursoExpress.dtos.ModuleCourseCreateDTO;
 import org.daw2.beatriz.CursoExpress.dtos.ModuleCourseDTO;
 import org.daw2.beatriz.CursoExpress.services.ModuleCourseService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -27,12 +33,20 @@ public class ModuleCourseController {
     @Autowired
     private ModuleCourseService moduleCourseService;
 
+    @Operation(summary = "Obtener todos los Módulos", description = "Devuelve una lista de todos los Módulos " +
+            "disponibles en el sistema.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lista de Módulos recuperada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = ModuleCourseDTO.class)))),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping
-    public ResponseEntity<List<ModuleCourseDTO>> getAllModulesCourses() {
-        logger.info("Solicitando la lista de todos los Módulos...");
+    public ResponseEntity<Page<ModuleCourseDTO>> getAllModulesCourses(@PageableDefault(size = 5, sort = "name") Pageable pageable) {
+        logger.info("Solicitando la lista de todos los Módulos con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            List<ModuleCourseDTO> moduleCourseDTOs = moduleCourseService.getAllModulesCourses();
-            logger.info("Se han encontrado {} Módulos.", moduleCourseDTOs.size());
+            Page<ModuleCourseDTO> moduleCourseDTOs = moduleCourseService.getAllModulesCourses(pageable);
+            logger.info("Se han encontrado {} Módulos.", moduleCourseDTOs.getTotalElements());
             return ResponseEntity.ok(moduleCourseDTOs);
         } catch (Exception e) {
             logger.error("Error al listar los Módulos: {}", e.getMessage());
@@ -40,6 +54,15 @@ public class ModuleCourseController {
         }
     }
 
+    @Operation(summary = "Obtener un Módulo por ID", description = "Recupera una Módulo " +
+            "específico según su identificador único.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Módulo encontrada",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ModuleCourseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Módulo no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<?> getModuleCourseById(@PathVariable Long id) {
         logger.info("Insertando nuevo Módulo con id {}", id);
@@ -58,8 +81,16 @@ public class ModuleCourseController {
         }
     }
 
+    @Operation(summary = "Crear un nuevo Módulo", description = "Permite registrar un nuevo Módulo en la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Módulo creado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ModuleCourseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos proporcionados"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping
-    public ResponseEntity<?> createModuleCourse(@Valid @RequestBody ModuleCourseCreateDTO moduleCourseCreateDTO, Locale locale) {
+    public ResponseEntity<?> createModuleCourse(@Valid @ModelAttribute ModuleCourseCreateDTO moduleCourseCreateDTO, Locale locale) {
         logger.info("Insertando nuevo Módulo con nombre {}", moduleCourseCreateDTO.getName());
         try {
             ModuleCourseDTO createdModuleCourse = moduleCourseService.createModuleCourse(moduleCourseCreateDTO, locale);
@@ -73,8 +104,16 @@ public class ModuleCourseController {
         }
     }
 
+    @Operation(summary = "Actualizar un Módulo", description = "Permite actualizar los datos de un Módulo existente.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Módulo actualizado exitosamente",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ModuleCourseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateModuleCourse(@PathVariable Long id, @Valid @RequestBody ModuleCourseCreateDTO moduleCourseCreateDTO, Locale locale) {
+    public ResponseEntity<?> updateModuleCourse(@PathVariable Long id, @Valid @ModelAttribute ModuleCourseCreateDTO moduleCourseCreateDTO, Locale locale) {
         logger.info("Actualizando Módulo con ID {}", id);
         try {
             ModuleCourseDTO updatedModuleCourse = moduleCourseService.updateModuleCourse(id, moduleCourseCreateDTO, locale);
@@ -88,6 +127,12 @@ public class ModuleCourseController {
         }
     }
 
+    @Operation(summary = "Eliminar un Módulo", description = "Permite eliminar un Módulo específica de la base de datos.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Módulo eliminado exitosamente"),
+            @ApiResponse(responseCode = "404", description = "Módulo no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteModuleCourse(@PathVariable Long id) {
         logger.info("Eliminando Módulo con ID {}", id);

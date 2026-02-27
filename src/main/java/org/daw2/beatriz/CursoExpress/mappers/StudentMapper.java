@@ -14,6 +14,7 @@ public class StudentMapper {
         dto.setEmail(student.getEmail());
         dto.setPhone(student.getPhone());
         dto.setName(student.getName());
+        dto.setImage(student.getImage());
         return dto;
     }
 

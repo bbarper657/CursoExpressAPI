@@ -14,9 +14,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -39,14 +40,12 @@ public class TuitionService {
     @Autowired
     private MessageSource messageSource;
 
-    public List<TuitionDTO> getAllTuitions() {
+    public Page<TuitionDTO> getAllTuitions(Pageable pageable) {
+        logger.info("Solicitando todas las Matrículas con paginación: página {}, tamaño {}", pageable.getPageNumber(), pageable.getPageSize());
         try {
-            logger.info("Obteniendo todas las matrículas...");
-            List<Tuition> tuitions = tuitionRepository.findAll();
-            logger.info("Se encontraron {} matrículas", tuitions.size());
-            return tuitions.stream()
-                    .map(tuitionMapper::toDTO)
-                    .toList();
+            Page<Tuition> tuitions = tuitionRepository.findAll(pageable);
+            logger.info("Se encontraron {} matrículas en la página actual.", tuitions.getNumberOfElements());
+            return tuitions.map(tuitionMapper::toDTO);
         } catch (Exception e) {
             logger.error("Error al obtener todas las matrículas: {}", e.getMessage());
             throw new RuntimeException("Error al obtener todas las matrículas", e);
@@ -69,12 +68,21 @@ public class TuitionService {
             throw new IllegalArgumentException(errorMessage);
         }
 
-        if (tuitionRepository.existsTuitionByCode(tuitionCreateDTO.getCode())) {
-            throw new IllegalArgumentException("El código de esa matrícula existe");
-        }
-
         // Se convierte a Entity para almacenar en la base de datos
         Tuition tuition = tuitionMapper.toEntity(tuitionCreateDTO);
+
+        if (tuitionCreateDTO.getStudentId() != null) {
+            Student student = studentRepository.findById(tuitionCreateDTO.getStudentId())
+                    .orElseThrow(() -> new IllegalArgumentException("El alumno no existe"));
+            tuition.setStudent(student);
+        }
+
+        if (tuitionCreateDTO.getCourseId() != null) {
+            Course course = courseRepository.findById(tuitionCreateDTO.getCourseId())
+                    .orElseThrow(() -> new IllegalArgumentException("El curso no existe"));
+            tuition.setCourse(course);
+        }
+
         Tuition savedTuition = tuitionRepository.save(tuition);
         // Se devuelve el DTO
         return tuitionMapper.toDTO(savedTuition);

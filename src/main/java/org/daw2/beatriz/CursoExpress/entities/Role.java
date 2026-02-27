@@ -1,0 +1,44 @@
+package org.daw2.beatriz.CursoExpress.entities;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+
+import java.util.Set;
+
+/**
+ * La clase `Role` representa un rol o autoridad en el sistema.
+ * Está diseñada para trabajar en conjunto con la entidad `User` para gestionar la autorización
+ * y el control de acceso, permitiendo que cada usuario pueda tener uno o más roles asignados.
+ *
+ * Las anotaciones de Lombok ayudan a reducir el código repetitivo al generar automáticamente
+ * métodos comunes como getters, setters, constructores, y otros métodos estándar de los objetos.
+ */
+@Entity // Marca esta clase como una entidad JPA.
+@Table(name = "roles") // Define el nombre de la tabla asociada a esta entidad.
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = "users") // Excluye `users` para evitar problemas de recursión en toString.
+@EqualsAndHashCode(exclude = "users") // Excluye `users` para evitar problemas de recursión en equals y hashCode.
+public class Role {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Nombre del rol, como "ROLE_ADMIN" o "ROLE_USER".
+    @NotEmpty(message = "{msg.role.name.notEmpty}")
+    @Size(max = 50, message = "{msg.role.name.size}")
+    @Column(name = "name", nullable = false, unique = true, length = 50)
+    private String name;
+
+    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    private Set<User> users;
+
+    public Role(String name) {
+        this.name = name;
+    }
+}
